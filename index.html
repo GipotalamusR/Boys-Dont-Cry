@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Плеер с текстом</title>
+    <!-- Подключение Telegram Web App API -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            /* Использование системных цветов Telegram для бесшовного дизайна */
+            font-family: var(--tg-theme-font-family, sans-serif);
+            background-color: var(--tg-theme-bg-color, #181818);
+            color: var(--tg-theme-text-color, #ffffff);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        #player {
+            width: 100%;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+        #lyrics-container {
+            flex-grow: 1;
+            width: 100%;
+            overflow-y: auto;
+            text-align: center;
+            padding-bottom: 50%; /* Место для прокрутки последней строки */
+            scroll-behavior: smooth;
+        }
+        .line {
+            padding: 12px;
+            opacity: 0.4;
+            transition: opacity 0.3s, font-size 0.3s, color 0.3s;
+            font-size: 16px;
+        }
+        .line.active {
+            opacity: 1;
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--tg-theme-button-color, #3390ec);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Укажите прямую ссылку на ваш аудиофайл -->
+    <audio id="player" controls>
+        <source src="track.mp3" type="audio/mpeg">
+    </audio>
+
+    <div id="lyrics-container"></div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand(); // Разворачиваем приложение на весь экран
+
+        // Вставьте сюда ваш текст в формате LRC
+        const lrcText = `
+[id: 3ab35hn]
+[ar: The Cure]
+[al: Mixed Up (Deluxe Edition)]
+[ti: Boys Don't Cry (New Voice Club Mix 1986)]
+[length: 05:30]
+
+[00:00.13]
+[00:01.41]
+[01:21.32]Я бы извинился Если бы думал, что это заставит тебя передумать
+[01:27.24]Но я знаю, что на этот раз Я сказал слишком много И был слишком груб
+[01:33.40]Я пытался посмеяться над этим Прикрыть все ложью
+[01:38.60]Я пытался посмеяться над этим Сдерживая слезы
+[01:43.91]Потому что мальчики не плачут
+[01:49.82]Мальчики не плачут
+[01:55.83]Я бы упал к твоим ногам И молил прощенья Умолял тебя
+[02:01.49]Но я знаю, что уже слишком поздно И я ничего не могу поделать
+[02:06.96]
+[02:18.68]
+[02:24.17]Мальчики не плачут
+[02:30.40]
+[02:52.95]Я бы упал к твоим ногам И молил прощенья Умолял тебя
+[02:58.40]Но я знаю, что уже слишком поздно И я ничего не могу поделать
+[03:04.53]И я пытался посмеяться над этим Прикрыть все ложью
+[03:10.24]Я пытался посмеяться над этим Сдерживая слезы
+[03:15.56]Потому что мальчики не плачут
+[03:21.39]Мальчики не плачут
+[03:27.18]Я бы сказал тебе Что люблю тебя Если бы думал, что ты останешься
+[03:32.60]Но я знаю, что это бесполезно Ты ведь все равно уже Ушла
+[03:38.79]Я переоценил предел (твоего терпения)
+[03:41.56]Довел тебя до черты
+[03:44.34]Воспринимал тебя как должное
+[03:46.69]Я думал, что ты во мне нуждаешься больше
+[03:52.94]
+[04:18.49]Мальчики не плачут
+[04:30.04]Мальчики не плачут
+[04:36.30]Я переоценил предел (твоего терпения)
+[04:39.16]Довел тебя до черты
+[04:41.99]Воспринимал тебя как должное
+[04:44.27]Я думал, что ты во мне нуждаешься больше
+[04:47.09]Теперь я бы сделал все на свете Чтоб вернуть тебя к себе
+[04:52.75]Но я продолжаю смеяться Сдерживая слезы
+[04:58.41]Потому что мальчики не плачут
+[05:04.31]Мальчики не плачут
+[05:12.49]Мальчики не плачут
+[05:29.61]
+        `;
+
+        // Функция парсинга LRC формата
+        const parseLRC = (text) => {
+            const lines = text.split('\n');
+            const result = [];
+            const regex = /\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)/;
+
+            lines.forEach(line => {
+                const match = line.match(regex);
+                if (match) {
+                    const minutes = parseInt(match[1], 10);
+                    const seconds = parseInt(match[2], 10);
+                    const time = minutes * 60 + seconds;
+                    const textContent = match[4].trim();
+                    if (textContent) {
+                        result.push({ time, text: textContent });
+                    }
+                }
+            });
+            return result;
+        };
+
+        const lyrics = parseLRC(lrcText);
+        const container = document.getElementById('lyrics-container');
+        const player = document.getElementById('player');
+        let currentLineIndex = -1;
+
+        // Создание HTML элементов для каждой строки текста
+        lyrics.forEach((line, index) => {
+            const div = document.createElement('div');
+            div.className = 'line';
+            div.id = 'line-' + index;
+            div.innerText = line.text;
+            container.appendChild(div);
+        });
+
+        // Логика синхронизации
+        player.addEventListener('timeupdate', () => {
+            const currentTime = player.currentTime;
+
+            let newIndex = -1;
+            for (let i = 0; i < lyrics.length; i++) {
+                if (currentTime >= lyrics[i].time) {
+                    newIndex = i;
+                } else {
+                    break;
+                }
+            }
+
+            if (newIndex !== currentLineIndex && newIndex !== -1) {
+                if (currentLineIndex !== -1) {
+                    document.getElementById('line-' + currentLineIndex).classList.remove('active');
+                }
+
+                currentLineIndex = newIndex;
+                const activeLine = document.getElementById('line-' + currentLineIndex);
+                activeLine.classList.add('active');
+
+                activeLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
+    </script>
+</body>
+</html>
