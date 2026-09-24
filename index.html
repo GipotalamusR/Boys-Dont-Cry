@@ -135,11 +135,6 @@
         const player = document.getElementById('player');
         let currentLineIndex = -1;
 
-        // Попытка автоматического запуска
-    player.play().catch(function(error) {
-        console.log("Автовоспроизведение заблокировано политикой браузера", error);
-    });
-
         // Создание HTML элементов для каждой строки текста
         lyrics.forEach((line, index) => {
             const div = document.createElement('div');
